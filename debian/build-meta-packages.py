@@ -19,6 +19,15 @@ STAGING = os.path.join(BUILD_ROOT, "staging")
 VERSION = "1.0"
 MAINTAINER = "Reuben Institute <reubeninstitute@gmail.com>"
 
+
+def data_package_version():
+    control = os.path.join(DEBIAN, "audiobible-data", "DEBIAN", "control")
+    with open(control) as fh:
+        for line in fh:
+            if line.startswith("Version:"):
+                return line.split(":", 1)[1].strip()
+    sys.exit(f"no Version: line in {control}")
+
 JINJA_ENV = jinja2.Environment(
     loader=jinja2.FileSystemLoader(TEMPLATES),
     keep_trailing_newline=True,
@@ -45,7 +54,10 @@ def write_depends_control(pkg_root, pkg, depends, description):
     os.makedirs(debian_dir, exist_ok=True)
     os.chmod(debian_dir, 0o755)
 
-    depends_list = [f"{d} (= {VERSION})" for d in depends]
+    depends_list = [
+        f"{d} (= {data_package_version() if d == 'audiobible-data' else VERSION})"
+        for d in depends
+    ]
     rendered = JINJA_ENV.get_template("control-meta.j2").render(
         pkg=pkg,
         version=VERSION,
@@ -128,7 +140,7 @@ def main():
         books = {args.book: books[args.book]}
 
     for book in sorted(books):
-        pkgs = books[book]
+        pkgs = books[book] + ["audiobible-data"]
         out = build_meta_package(
             f"audiobible-{book}",
             pkgs,
@@ -143,6 +155,7 @@ def main():
         return
 
     all_chapter_pkgs = sorted(pkg for pkgs in books.values() for pkg in pkgs)
+    all_chapter_pkgs.append("audiobible-data")
     out = build_meta_package(
         "audiobible",
         all_chapter_pkgs,

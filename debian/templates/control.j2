@@ -6,4 +6,5 @@ Maintainer: {{ maintainer }}
 Installed-Size: {{ size_kb }}
 Section: sound
 Priority: optional
-Description: {{ description }}
+{% if depends %}Depends: {{ depends|join(",\n ") }}
+{% endif %}Description: {{ description }}

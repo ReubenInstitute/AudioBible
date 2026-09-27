@@ -21,6 +21,15 @@ VARIANTS = ["original", "cloned", "english"]
 VERSION = "1.0"
 MAINTAINER = "Reuben Institute <reubeninstitute@gmail.com>"
 
+
+def data_package_version():
+    control = os.path.join(DEBIAN, "audiobible-data", "DEBIAN", "control")
+    with open(control) as fh:
+        for line in fh:
+            if line.startswith("Version:"):
+                return line.split(":", 1)[1].strip()
+    sys.exit(f"no Version: line in {control}")
+
 JINJA_ENV = jinja2.Environment(
     loader=jinja2.FileSystemLoader(TEMPLATES),
     keep_trailing_newline=True,
@@ -75,6 +84,7 @@ def write_control(pkg_root, pkg, description):
         version=VERSION,
         maintainer=MAINTAINER,
         size_kb=size_kb,
+        depends=[f"audiobible-data (= {data_package_version()})"],
         description=description,
     )
     control = os.path.join(debian_dir, "control")
