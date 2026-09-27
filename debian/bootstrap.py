@@ -1,25 +1,4 @@
 #!/usr/bin/env python3
-"""
-One-time (or whenever-needed) rebuild of every audiobible chapter .deb.
-Meta packages (book and corpus) are built separately by debian/meta.py.
-
-Each chapter package is sourced from the matching sdist/*.deb using the
-deb system's own unpack (dpkg-deb -R, control area + payload together),
-extracted into build/<pkg>/ (outside the repo, outside sdist -- never
-extracted/rebuilt over the sdist deb itself). Only the parts owned by the
-repo are then overwritten: DEBIAN/control (rendered from a Jinja2
-template), the two embedded scripts, copyright/changelog, and md5sums.
-The result is packed with dpkg-deb -b into a separate dist/ output.
-
-Each rebuilt package embeds debian/bump-version.sh and debian/fast-build.sh
-in its own DEBIAN/ control area, so afterwards it can be unpacked and
-rebuilt (new mp3, bumped version) purely from itself.
-
-Usage: debian/bootstrap.py [book] [chapter]
-  With no arguments, builds every chapter package.
-  With a book (e.g. 27), builds only that book's chapters.
-  With a book and chapter (e.g. 27 001), builds only that one chapter package.
-"""
 import argparse
 import glob
 import gzip
@@ -49,10 +28,6 @@ JINJA_ENV = jinja2.Environment(
 
 
 def extract_package(book, chapter, pkg_root):
-    """Extract the matching sdist deb's control area AND payload (dpkg-deb -R)
-    straight into pkg_root -- the deb system's own unpack, not a hand-rolled
-    one. pkg_root lives under build/staging/ (separate from build/sdist/),
-    so this never extracts/rebuilds a deb over itself."""
     pattern = os.path.join(SDIST, f"audiobible-{book}-{chapter}_*.deb")
     matches = glob.glob(pattern)
     if not matches:
@@ -71,16 +46,13 @@ def extract_package(book, chapter, pkg_root):
 
 
 def discover_chapters():
-    """Which (book, chapter) pairs exist -- discovered by scanning sdist/*.deb
-    filenames. sdist/ is the source of truth for what's buildable; its mp3
-    payload is also the byte source extracted per pair."""
     chapters = {}
     for deb in glob.glob(os.path.join(SDIST, "audiobible-*-*_*.deb")):
         name = os.path.basename(deb)
-        pkg = name.split("_", 1)[0]  # audiobible-<book>-<chapter>
+        pkg = name.split("_", 1)[0]
         parts = pkg.split("-")
         if len(parts) != 3:
-            continue  # skip meta packages like audiobible-01_...
+            continue
         _, book, chapter = parts
         chapters[(book, chapter)] = None
     return chapters
@@ -154,8 +126,6 @@ def write_md5sums(pkg_root):
 
 
 def build_deb(pkg_root, pkg):
-    """Pack pkg_root into dist/, then remove the staging dir -- it's
-    scratch space, not needed once the .deb exists."""
     os.makedirs(OUTDIR, exist_ok=True)
     out = os.path.join(OUTDIR, f"{pkg}_{VERSION}_all.deb")
     env = dict(os.environ, TMPDIR=OUTDIR)

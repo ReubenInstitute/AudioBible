@@ -1,18 +1,4 @@
 #!/usr/bin/env python3
-"""
-Build the book and corpus meta packages -- separate from bootstrap.py,
-which only builds chapter packages.
-
-Which chapter packages exist is discovered from sdist/*.deb filenames
-(the same source of truth bootstrap.py uses). Each meta package just
-Depends on its chapter packages, pinned to VERSION; it carries no payload
-of its own.
-
-Usage: debian/build-meta-packages.py [book]
-  With no arguments, builds every book meta package plus the corpus meta
-  package.
-  With a book (e.g. 27), builds only that book's meta package.
-"""
 import argparse
 import glob
 import hashlib
@@ -40,15 +26,13 @@ JINJA_ENV = jinja2.Environment(
 
 
 def discover_books():
-    """book -> sorted list of its chapter package names, from sdist/*.deb
-    filenames."""
     books = {}
     for deb in glob.glob(os.path.join(SDIST, "audiobible-*-*_*.deb")):
         name = os.path.basename(deb)
-        pkg = name.split("_", 1)[0]  # audiobible-<book>-<chapter>
+        pkg = name.split("_", 1)[0]
         parts = pkg.split("-")
         if len(parts) != 3:
-            continue  # skip meta packages like audiobible-01_...
+            continue
         _, book, chapter = parts
         books.setdefault(book, []).append(pkg)
     for book in books:
@@ -103,8 +87,6 @@ def write_md5sums(pkg_root):
 
 
 def build_deb(pkg_root, pkg):
-    """Pack pkg_root into dist/, then remove the staging dir -- it's
-    scratch space, not needed once the .deb exists."""
     os.makedirs(OUTDIR, exist_ok=True)
     out = os.path.join(OUTDIR, f"{pkg}_{VERSION}_all.deb")
     env = dict(os.environ, TMPDIR=OUTDIR)

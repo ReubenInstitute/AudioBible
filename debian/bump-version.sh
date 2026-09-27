@@ -1,6 +1,4 @@
 #!/bin/sh
-# Bumps a single unpacked package's own minor version, in place.
-# Usage: debian/bump-version.sh <unpacked-package-dir>
 set -eu
 
 dir="$1"
