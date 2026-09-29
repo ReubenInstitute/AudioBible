@@ -17,7 +17,8 @@ BUILD_ROOT = os.path.join(REPO, "build")
 SDIST = os.path.join(BUILD_ROOT, "sdist")
 OUTDIR = os.path.join(BUILD_ROOT, "dist")
 STAGING = os.path.join(BUILD_ROOT, "staging")
-VARIANTS = ["original", "cloned", "english"]
+VARIANTS = ["shmueloff", "shmueloff-darkknox2", "english"]
+VARIANT_MAPPING = {"shmueloff": "original", "shmueloff-darkknox2": "cloned", "english": "english"}
 VERSION = "1.0"
 MAINTAINER = "Reuben Institute <reubeninstitute@gmail.com>"
 
@@ -37,32 +38,42 @@ JINJA_ENV = jinja2.Environment(
 
 
 def extract_package(book, chapter, pkg_root):
-    pattern = os.path.join(SDIST, f"audiobible-{book}-{chapter}_*.deb")
-    matches = glob.glob(pattern)
-    if not matches:
-        return set()
-    deb_path = matches[0]
-
-    os.makedirs(os.path.dirname(pkg_root), exist_ok=True)
-    subprocess.run(["dpkg-deb", "-R", deb_path, pkg_root], check=True)
-
     variants_found = set()
+    os.makedirs(pkg_root, exist_ok=True)
     audiobible_dir = os.path.join(pkg_root, "usr", "share", "audiobible")
+    os.makedirs(audiobible_dir, exist_ok=True)
+
     for variant in VARIANTS:
-        if os.path.isdir(os.path.join(audiobible_dir, variant, book, chapter)):
+        pattern = os.path.join(SDIST, f"audiobible-verses-{variant}-{book}-{chapter}_*.deb")
+        matches = glob.glob(pattern)
+        if not matches:
+            continue
+        deb_path = matches[0]
+
+        temp_root = os.path.join(os.path.dirname(pkg_root), f"temp-{variant}")
+        if os.path.exists(temp_root):
+            shutil.rmtree(temp_root)
+        subprocess.run(["dpkg-deb", "-R", deb_path, temp_root], check=True)
+
+        temp_audiobible = os.path.join(temp_root, "usr", "share", "audiobible", variant, book, chapter)
+        if os.path.isdir(temp_audiobible):
+            os.makedirs(os.path.join(audiobible_dir, variant, book), exist_ok=True)
+            shutil.copytree(temp_audiobible, os.path.join(audiobible_dir, variant, book, chapter), dirs_exist_ok=True)
             variants_found.add(variant)
+            shutil.rmtree(temp_root)
+
     return variants_found
 
 
 def discover_chapters():
     chapters = {}
-    for deb in glob.glob(os.path.join(SDIST, "audiobible-*-*_*.deb")):
+    for deb in glob.glob(os.path.join(SDIST, "audiobible-verses-*-*-*_*.deb")):
         name = os.path.basename(deb)
         pkg = name.split("_", 1)[0]
         parts = pkg.split("-")
-        if len(parts) != 3:
+        if len(parts) != 5:
             continue
-        _, book, chapter = parts
+        _, _, _, book, chapter = parts
         chapters[(book, chapter)] = None
     return chapters
 
